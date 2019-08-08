@@ -30,7 +30,7 @@
 #include "HyperTrial.h"
 #include "generalFunction.h"
 #include "userClass.h"
-#include "geometryFunction.h"
+
 
 
 using namespace std;

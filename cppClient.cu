@@ -189,6 +189,81 @@ vector<ellipseTrial> User::ellipseHelper(short hv[][anchorSize],int  ah,int  h3)
 */
 
 
+
+
+__global__ void goOver3(int n, ellipseTrial *data, float *area,int m){
+    int index = threadIdx.x+blockIdx.x*blockDim.x;
+    int stride=blockDim.x*gridDim.x;
+    for(int k=index;k<n;k+=stride){
+        float x = data[k].c3X;
+        float y = data[k].c3Y;
+        float r = data[k].h3 * data[k].avgD2;
+        float a = data[k].ah * data[k].avgD1;
+        
+        float h1x = data[k].c1X;
+        float h1y = data[k].c1Y;
+        float h2x = data[k].c2X;
+        float h2y = data[k].c2Y;
+        
+        float rr = r*r;
+        float a2 = (data[k].ah-1.0)*data[k].avgD1;
+        float total =0.0;
+        
+        for(int l = 0; l<m;){
+            float i = area[l++];
+            float j = area[l++];
+            float tt = sqrtf((i-h1x)*(i-h1x)+(j-h1y)*(j-h1y))+sqrtf((i-h2x)*(i-h2x)+(j-h2y)*(j-h2y));
+            float di = x-i;
+            float dj = y-j;
+            if(di * di + dj * dj <= rr && tt <= 2*a && tt >= 2* a2) total+=1.0;
+        }
+
+        float rate3 = data[k].rate3;
+        data[k].grAr=rate3*total;
+        data[k].acAr = total;
+
+    }
+}
+
+__global__ void bestEllipse(int n, ellipseTrial *data, float *area,int m){
+    int index = threadIdx.x+blockIdx.x*blockDim.x;
+    int stride=blockDim.x*gridDim.x;
+    for(int k=index;k<n;k+=stride){
+        float x = data[k].c3X;
+        float y = data[k].c3Y;
+        float r = data[k].h3 * data[k].avgD2;
+        float a = data[k].ah * data[k].avgD1;
+        
+        float h1x = data[k].c1X;
+        float h1y = data[k].c1Y;
+        float h2x = data[k].c2X;
+        float h2y = data[k].c2Y;
+        
+        float rr = r*r;
+        float a2 = (data[k].ah-1.0)*data[k].avgD1;
+        float total =0.0;
+        
+        for(int l = 0; l<m;){
+            float i = area[l++];
+            float j = area[l++];
+            float tt = sqrtf((i-h1x)*(i-h1x)+(j-h1y)*(j-h1y))+sqrtf((i-h2x)*(i-h2x)+(j-h2y)*(j-h2y));
+            float di = x-i;
+            float dj = y-j;
+            if(di * di + dj * dj <= rr && tt <= 2*a && tt >= 2* a2) total+=1.0;
+        }
+        float rate = total / (data[k].tArea +0.1);
+        float rate3 = rate*rate*rate;
+        if ( rate3<1.1){
+            data[k].grAr=rate3*total;
+            data[k].acAr = total;
+            data[k].rate3 = rate3;
+        }
+    }
+}
+
+
+
+
 __global__ void goOver2(int n, hyperTrial *data, float *area,int m){
     int index = threadIdx.x+blockIdx.x*blockDim.x;
     int stride=blockDim.x*gridDim.x;
