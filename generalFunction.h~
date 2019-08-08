@@ -1,13 +1,4 @@
-#ifndef GENERALFUNC_H
-#define GENERALFUNC_H
-#include <iostream>
-#include <string>
-#include <unordered_set>
-#include <math.h>
-#include <sstream>
-#include "Point.h"
-#include "CycleTrial.h"
-#include "HyperTrial.h"
+
 
 void updateTAS(twoCycleTrial ct, unordered_set<string> & st);
 void updateTAS(hyperTrial ht, unordered_set<string> & st);

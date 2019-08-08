@@ -1,0 +1,17 @@
+#ifndef MY_STRUCT
+#define MY_STRUCT
+#include <iostream>
+#include <string>
+#include <unordered_set>
+#include <math.h>
+#include <sstream>
+using namespace std;
+
+struct Point
+{
+  int m_X;
+  int m_Y;
+
+};
+
+#endif

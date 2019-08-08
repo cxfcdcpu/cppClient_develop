@@ -1,5 +1,3 @@
-#ifndef GENERALFUNC_H
-#define GENERALFUNC_H
 #include <iostream>
 #include <string>
 #include <unordered_set>
@@ -8,21 +6,7 @@
 #include "Point.h"
 #include "CycleTrial.h"
 #include "HyperTrial.h"
-
-void updateTAS(twoCycleTrial ct, unordered_set<string> & st);
-void updateTAS(hyperTrial ht, unordered_set<string> & st);
-string findBestTry(twoCycleTrial * cTri, hyperTrial * hTri, int cs, int hs, unordered_set<string> & TAS);
-int myStoi(string data);
-int pDis(Point p1, Point p2);
-int lDis(Point p1, Point p2, Point p3);
-
-
-
-
-
-
-
-
+#include "generalFunction.h"
 
 void updateTAS(twoCycleTrial ct, unordered_set<string> & TAS)
 {
@@ -95,6 +79,10 @@ int lDis(Point p0, Point p1, Point p2)
     else
         return sqrt(pDis(p0,p1));
 }
+
+
+
+
 
 
 string findBestTry(twoCycleTrial * cTri, hyperTrial * hTri, int cs, int hs, unordered_set<string> & TAS)
@@ -214,6 +202,3 @@ int myStoi(string data)
 
 }
 
-
-
-#endif

@@ -28,7 +28,7 @@
 #include "CycleTrial.h"
 #include "HyperTrial.h"
 #include "generalFunction.h"
-#include "geometryFunction.h"
+
 using namespace std;
 
 class User

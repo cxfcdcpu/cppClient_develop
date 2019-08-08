@@ -10,6 +10,7 @@
 #include<arpa/inet.h>	//inet_addr
 #include<netdb.h>	//hostent
 #include<stdlib.h>
+#include "allConstant.h"
 #include <unistd.h>
 #include <thread>
 #include <chrono> 
@@ -24,20 +25,20 @@
 #include <future>
 #include <complex>
 #include <algorithm>
-#include "myStruct.h"
+#include "Point.h"
+#include "CycleTrial.h"
+#include "HyperTrial.h"
+#include "generalFunction.h"
+#include "userClass.h"
+#include "geometryFunction.h"
+
+
 using namespace std;
 
 /**
 	TCP Client class
 */
-Queue<int> intQueue;
-Queue<string> stringQueue;
-Queue<string> computingQueue;
-const int nodeSize=5001;
-const int strokeSize=5000;
-const int anchorSize=200;
-const int width = 1500;
-const int height = 1000;
+
 
 
 class tcp_client
@@ -50,100 +51,20 @@ private:
 	
 public:
 	tcp_client();
+  Queue<string> stringQueue;
+  Queue<string> computingQueue;
 	bool conn(string, int);
+	void listenString();
+	void repeatSend();
+	void computationQueueHandle();
 	bool send_data(string data);
-
+	void addData(string data);
+  void setupTAS(string tmpID,int epoch, string requestID,int totalStroke);
 	void receive(char buf[]);
 };
 
-class User
-{
-  
-  private:
-    string id;
-    int nodes;
-    int anchor;
-    int radioRange;
-    int epoch;
-    int tSize;
-    short xList[nodeSize];
-    short yList[nodeSize];
-    short tx[strokeSize];
-    short ty[strokeSize];
-    //int hv[nodeSize][anchorSize];
-    bool computingLock;
-    int totalStroke;
-    
-  public:
-    unordered_set<string> TAS;
-    map<string,string> resultMap;
-    User():xList(),yList()
-    {
-        id="none";
-        nodes=-1;
-        anchor=-1;
-        radioRange=-1;
-        epoch=-1;
-        tSize=0;
-        computingLock=0;
-        for(int i=0;i<strokeSize;i++)
-        {
-          tx[i]=-1;
-          ty[i]=-1;
-        }
-        for(int i=0;i<nodeSize;i++)
-        {
-          xList[i]=rand()%width;
-          yList[i]=rand()%height;
-        }
-    
-    }
-    User(string i):xList(),yList()
-    {
-        id=i;
-        epoch=-1;
-        nodes=-1;
-        anchor=-1;
-        radioRange=-1;
-        tSize=0;
-        computingLock=0;
-        for(int i=0;i<strokeSize;i++)
-        {
-          tx[i]=-1;
-          ty[i]=-1;
-        }
-        for(int i=0;i<nodeSize;i++)
-        {
-          xList[i]=rand()%width;
-          yList[i]=rand()%height;
-        }
-    }
-    void setNodes(int n){nodes=n;}
-    void setAnchor(int a){anchor=a;}
-    void setRange(int r){radioRange=r;}
-    void setEpoch(int e){epoch=e;}
-    void setX(int i, int v){xList[i]=v;}
-    void setY(int i, int v){yList[i]=v;}
-    void setTraj(int x, int y, int ind){tx[ind]=x;ty[ind]=y;}
-    int getNodes(){return nodes;}
-    int getAnchor(){return anchor;}
-    int getRange(){return radioRange;}
-    int getEpoch(){return epoch;}
-    int getX(int i){return xList[i];}
-    int getY(int i){return yList[i];}
-    void genTAS(int totalStroke);
-    void addToTAS(Point p, int width);
-    void addToTAS(Point p1, Point p2, int width);
-    void printArea();
-    vector<twoCycleTrial> findTwoCycleTrial(short hv[][anchorSize]);
-    vector<hyperTrial> findHyperTrial(short hv[][anchorSize]);
-    vector<hyperTrial> hyperHelper(short hv[][anchorSize], int, int);
-    
-    void getHopInfo(short hv[][anchorSize]);
-    //void updataHopVector();
-};
 
-const int userSize=10000;
+
 map<string,int> indexMap;
 
 User allUser[userSize];
@@ -152,23 +73,13 @@ string idList[userSize];
 int userNow=-1;
 
 
-int myStoi(string data);
-void addData(string data);
+
+
 int getUser(string tmpID);
 void setupUser(string tmpID,int epoch,int nodeNum,int anchorNum,int radioRange);
 void configNodes(string tmpID,int epoch,int nodeID,int X,int Y);
 void addTrajectory(string tmpID,int epoch,int traInd,int X,int Y);
-void setupTAS(string tmpID,int epoch, string requestID,int totalStroke);
-int pDis(Point p1, Point p2);
-int lDis(Point p1, Point p2, Point p3);
-int euDis(int x1,int y1,int x2,int y2);
-float findInterTwoCycle(Point,int,Point,int,float);
-float findInterHyperCycle(Point,Point,Point, int,int,float,float,vector<float>&);
-vector<tuple<float,float>> getRoot(float x0,float y0,float r,float a,float b,vector<float>&);
-float rootX(float,float,float);
-float hyperArea(float a,float b,tuple<float,float> z1,tuple<float,float> z2);
-vector<float> realQudricRoot(float b,float c,float d,float e);
-float hyperAreaHelper(float a,float b,float m,float z,float y);
+
 
 
 tcp_client::tcp_client()
@@ -178,51 +89,9 @@ tcp_client::tcp_client()
 	address = "";
 }
 
-void User:: printArea()
-{
-    cout<<"printing TAS"<<endl;
-    int counter=0;
-    for(string point: TAS)
-    {
-        counter++;
-        cout<<"("<<point<<");";
-    }
-    cout<<endl;
-    cout<<"total: "<<counter<<" points"<<endl;
-    
 
 
-}
-
-
-vector<hyperTrial> User::findHyperTrial(short hv[][anchorSize])
-{
-
-    vector<hyperTrial> trials;
-    
-    vector<future<vector<hyperTrial>>> VF;
-    for(int i=1;i<=12;i++)
-    {
-      for(int j=1;j<=10;j++)
-      {
-        VF.push_back(async(&User::hyperHelper,this,hv,j,i));
-      }
-    }
-    
-    for(auto& V:VF)
-    {
-      vector<hyperTrial> curT = V.get();
-      //cout<<"Threads results number: "<<curT.size()<<endl;
-      for(vector<hyperTrial>::iterator it = curT.begin();it != curT.end();++it)
-      {
-        trials.push_back(*it);
-      }
-    }
-    
-    return trials;
-}
-
-
+/*
 vector<EllipseTrial> User::findEllipseTrial(short hv[][anchorSize])
 {
 
@@ -249,116 +118,10 @@ vector<EllipseTrial> User::findEllipseTrial(short hv[][anchorSize])
     
     return trials;
 }
+*/
 
 
-void User :: getHopInfo(short hv[][anchorSize])
-{
-    nodes = nodes < 5000 ? nodes : 5000; 
-    nodes = nodes < 0 ? 5000 : nodes;
-    vector<vector<int>> neighborsList(nodes);
-    
-    for(int i=0;i<nodes;i++)
-    {
-        int curX=xList[i];
-        int curY=yList[i];
-        
-        for(int j=0;j<nodes;j++)
-        {
-            if(i!=j){
-                int neighborX=xList[j];
-                int neighborY=yList[j];
-                if(euDis(curX,curY,neighborX,neighborY)<radioRange*radioRange)
-                {
-                    neighborsList[i].push_back(j);
-                }
-            }
-        }
-    }
-    
-    //cout<<radioRange<<endl;
-    
-    
-    for(int i=0;i<nodes;i++)
-    {
-        for(int j=0;j<anchor;j++)
-        {
-            hv[i][j]=-1;
-        }
-    }
-    
-    for(int i=0;i<anchor;i++)
-    {
-        unordered_set<int> visited;
-        queue<int> nq;
-        nq.push(i);
-        while(!nq.empty())
-        {
-            int cur=nq.front();
-            nq.pop();
-            visited.insert(cur);
-            int curHop=hv[cur][i]==-1?0:hv[cur][i];
-          if(!neighborsList[cur].empty()){
-            for(int neighbor : neighborsList[cur])
-            {
-                if(visited.find(neighbor)==visited.end())
-                {
-                    nq.push(neighbor);
-                    visited.insert(neighbor); 
-                }
-                if(hv[neighbor][i]==-1)hv[neighbor][i]=curHop+1;
-                else
-                {
-                    hv[neighbor][i]=hv[neighbor][i]<curHop+1?hv[neighbor][i]:curHop+1;
-                }  
-            }
-          }
-      }
-    }
-
-}
-
-vector<twoCycleTrial> User::findTwoCycleTrial(short hv[][anchorSize])
-{
-
-    vector<twoCycleTrial> trials;
-
-    for(int i=0;i<anchor;i++)
-    {
-      for(int j=0;j<anchor;j++)
-      {
-      if(i!=j){
-        float avgHopDis= radioRange;
-        float dis=sqrt(euDis(xList[i],yList[i],xList[j],yList[j]));
-        Point p1={xList[i],yList[i]};
-        Point p2={xList[j],yList[j]};
-        //cout<<i<<" and "<<j<<" hv: "<<hv[i][j]<<" dis "<<dis<<endl;
-        if(hv[i][j]!=-1&&hv[i][j]!=0)avgHopDis=dis / hv[i][j];
-      
-        //cout<<"avgHopDis: "<<avgHopDis<<endl;
-        for(int h1=1;h1<20;h1++)
-        {
-          for(int h2=1;h2<20;h2++)
-          {
-            if ( (h1+h2)*avgHopDis>dis)
-            {
-                float area=findInterTwoCycle(p1,h1,p2,h2,avgHopDis);
-                if (area>1000)
-                {
-                    twoCycleTrial tryEntry={i,j,static_cast<float>(xList[i]),static_cast<float>(yList[i]),
-                                        static_cast<float>(xList[j]),static_cast<float>(yList[j]),static_cast<float>(h1),
-                                        static_cast<float>(h2),static_cast<float>(avgHopDis),static_cast<float>(area),0,0,0};  
-                    trials.push_back(tryEntry);
-                }
-            }
-          
-          }
-        }
-       }
-      }
-    }
-    return trials;
-}
-
+/*
 vector<ellipseTrial> User::ellipseHelper(short hv[][anchorSize],int  ah,int  h3)
 {
     vector<ellipseTrial> trials;
@@ -367,129 +130,64 @@ vector<ellipseTrial> User::ellipseHelper(short hv[][anchorSize],int  ah,int  h3)
     {
       for(int j=0;j<anchor;j++)
       {
-        if(i!=j){
+        if(i!=j)
+	      {
           float avgHopDis1= radioRange;
           float avgHopDis2= radioRange;
           float dis=sqrt(euDis(xList[i],yList[i],xList[j],yList[j]));
           Point p1={xList[i],yList[i]};
           Point p2={xList[j],yList[j]};
-          if(hv[i][j]!=-1&&hv[i][j]!=0)avgHopDis1=dis / hv[i][j];
-          //avgHopDis2= avgHopDis1;
-          if(dis>2*ah*avgHopDis1)
+          if(hv[i][j]!=-1&&hv[i][j]!=0)avgHopDis1=(dis + radioRange/3) / hv[i][j];
+          for(int z=0;z<anchor;z++)
           {
-            for(int z=0;z<anchor;z++)
+            //cout<<"Thread is working"<<endl;
+            Point p3={xList[z],yList[z]};
+            float dis2=sqrt(euDis(xList[z],yList[z],xList[j],yList[j]));
+            float dis3=sqrt(euDis(xList[z],yList[z],xList[i],yList[i]));
+            if(hv[z][j]!=-1&&hv[z][j]!=0 && hv[z][i]!=-1&&hv[z][i]!=0)
             {
-              //cout<<"Thread is working"<<endl;
-              Point p3={xList[z],yList[z]};
-              float dis2=sqrt(euDis(xList[z],yList[z],xList[j],yList[j]));
-              float dis3=sqrt(euDis(xList[z],yList[z],xList[i],yList[i]));
-              if(hv[z][j]!=-1&&hv[z][j]!=0 && hv[z][i]!=-1&&hv[z][i]!=0)
-              {
-                  avgHopDis2=(dis+ dis2 +dis3) / (hv[i][j]+hv[z][j]+hv[z][i]);
-                  //cout<<"avgHopDis2: "<<avgHopDis2<<endl;
-                  vector<float> yr1;
-                  vector<float> yr2;
-                  float area1 = findInterHyperCycle(p1,p2,p3,ah,h3,avgHopDis1,avgHopDis2,yr1);
-                  float area2 = findInterHyperCycle(p1,p2,p3,(ah-1),h3,avgHopDis1,avgHopDis2,yr2);
-                  
-                  //cout<<"area1 is : "<< area1<<endl;
-                  //cout<<"area2 is : "<< area2<<endl;
-                  
-                  if(area1-area2>1000 && area1-area2 < 640000){
-                    float yroot[8]={0.0};
-                    int startInd=0;
-                    for(float& y1:yr1)
-                    {
-                      yroot[startInd++]=y1;
-                    }
-                    startInd=4;
-                    for(float& y2:yr2)
-                    {
-                      yroot[startInd++]=y2;
-                    }
-                    hyperTrial tryEntry={i,j,z,static_cast<float>(xList[i]),static_cast<float>(yList[i]),
-                                      static_cast<float>(xList[j]),static_cast<float>(yList[j]),static_cast<float>(xList[z]),
-                                      static_cast<float>(yList[z]),static_cast<float>(ah),static_cast<float>(h3),
-                                      static_cast<float>(avgHopDis1),static_cast<float>(avgHopDis2),
-                                      static_cast<float>(area1-area2),0,0,0};
-                    memcpy(&(tryEntry.yroot), &yroot, 32) ;    
-                    trials.push_back(tryEntry);
-                  }
-              }
+	            avgHopDis2=(dis+ dis2 +dis3+radioRange) / (hv[i][j]+hv[z][j]+hv[z][i]);
+	            //cout<<"avgHopDis2: "<<avgHopDis2<<endl;
+	            vector<float> yr1;
+	            vector<float> yr2;
+	            float area1 = findInterEllipseCycle(p1,p2,p3,ah,h3,avgHopDis1,avgHopDis2,yr1);
+	            float area2 = findInterEllipseCycle(p1,p2,p3,(ah-1),h3,avgHopDis1,avgHopDis2,yr2);
+	            
+	            //cout<<"area1 is : "<< area1<<endl;
+	            //cout<<"area2 is : "<< area2<<endl;
+	        
+	            if(area1-area2>1000 && area1-area2 < 640000)
+	            {
+	              float yroot[8]={0.0};
+	              int startInd=0;
+	              for(float& y1:yr1)
+	              {
+	                yroot[startInd++]=y1;
+	              }
+	              startInd=4;
+	              for(float& y2:yr2)
+	              {
+	                yroot[startInd++]=y2;
+	              }
+	              ellipseTrial tryEntry={i,j,z,static_cast<float>(xList[i]),static_cast<float>(yList[i]),
+	                                static_cast<float>(xList[j]),static_cast<float>(yList[j]),static_cast<float>(xList[z]),
+	                                static_cast<float>(yList[z]),static_cast<float>(ah),static_cast<float>(h3),
+	                                static_cast<float>(avgHopDis1),static_cast<float>(avgHopDis2),
+	                                static_cast<float>(area1-area2),0,0,0};
+	              memcpy(&(tryEntry.yroot), &yroot, 32) ;    
+	              trials.push_back(tryEntry);
+	            }
             }
           }
+          
         }
       }
     }
     //cout<<"trials size: "<<trials.size()<<endl;
     return trials;
 }
+*/
 
-vector<hyperTrial> User::hyperHelper(short hv[][anchorSize],int  ah,int  h3)
-{
-    vector<hyperTrial> trials;
-
-    for(int i=0;i<anchor;i++)
-    {
-      for(int j=0;j<anchor;j++)
-      {
-        if(i!=j){
-          float avgHopDis1= radioRange;
-          float avgHopDis2= radioRange;
-          float dis=sqrt(euDis(xList[i],yList[i],xList[j],yList[j]));
-          Point p1={xList[i],yList[i]};
-          Point p2={xList[j],yList[j]};
-          if(hv[i][j]!=-1&&hv[i][j]!=0)avgHopDis1=dis / hv[i][j];
-          //avgHopDis2= avgHopDis1;
-          if(dis>2*ah*avgHopDis1)
-          {
-            for(int z=0;z<anchor;z++)
-            {
-              //cout<<"Thread is working"<<endl;
-              Point p3={xList[z],yList[z]};
-              float dis2=sqrt(euDis(xList[z],yList[z],xList[j],yList[j]));
-              float dis3=sqrt(euDis(xList[z],yList[z],xList[i],yList[i]));
-              if(hv[z][j]!=-1&&hv[z][j]!=0 && hv[z][i]!=-1&&hv[z][i]!=0)
-              {
-                  avgHopDis2=(dis+ dis2 +dis3) / (hv[i][j]+hv[z][j]+hv[z][i]);
-                  //cout<<"avgHopDis2: "<<avgHopDis2<<endl;
-                  vector<float> yr1;
-                  vector<float> yr2;
-                  float area1 = findInterHyperCycle(p1,p2,p3,ah,h3,avgHopDis1,avgHopDis2,yr1);
-                  float area2 = findInterHyperCycle(p1,p2,p3,(ah-1),h3,avgHopDis1,avgHopDis2,yr2);
-                  
-                  //cout<<"area1 is : "<< area1<<endl;
-                  //cout<<"area2 is : "<< area2<<endl;
-                  
-                  if(area1-area2>1000 && area1-area2 < 640000){
-                    float yroot[8]={0.0};
-                    int startInd=0;
-                    for(float& y1:yr1)
-                    {
-                      yroot[startInd++]=y1;
-                    }
-                    startInd=4;
-                    for(float& y2:yr2)
-                    {
-                      yroot[startInd++]=y2;
-                    }
-                    hyperTrial tryEntry={i,j,z,static_cast<float>(xList[i]),static_cast<float>(yList[i]),
-                                      static_cast<float>(xList[j]),static_cast<float>(yList[j]),static_cast<float>(xList[z]),
-                                      static_cast<float>(yList[z]),static_cast<float>(ah),static_cast<float>(h3),
-                                      static_cast<float>(avgHopDis1),static_cast<float>(avgHopDis2),
-                                      static_cast<float>(area1-area2),0,0,0};
-                    memcpy(&(tryEntry.yroot), &yroot, 32) ;    
-                    trials.push_back(tryEntry);
-                  }
-              }
-            }
-          }
-        }
-      }
-    }
-    //cout<<"trials size: "<<trials.size()<<endl;
-    return trials;
-}
 
 __global__ void goOver2(int n, hyperTrial *data, float *area,int m){
     int index = threadIdx.x+blockIdx.x*blockDim.x;
@@ -633,206 +331,16 @@ __global__ void goOver1(int n, twoCycleTrial *data, float *area,int m){
 
 }
 
-void User:: genTAS(int ts)
-{
-    TAS.clear();
-    totalStroke=ts;
-    int width=1;
-    for( int i=0;i<ts;i++)
-    {
-        if(tx[i]<0)
-        {
-            width=ty[i];
-        
-        }
-        else
-        {
-            if(tx[i-1]>0)
-            {
-                Point preP={tx[i-1],ty[i-1]};
-                Point curP={tx[i],ty[i]};
-                addToTAS(preP,curP,width);
-            
-            }
-            else
-            {
-                Point curP={tx[i],ty[i]};
-                addToTAS(curP,width);
-            
-            }
-        
-        }
-    
-    }
-
-}
-
-void User:: addToTAS(Point p, int width)
-{
-    int lx= p.m_X-width / 2 < 0? 0 : p.m_X-width / 2;
-    int ly= p.m_Y-width / 2 < 0? 0 : p.m_Y-width / 2;
-    for( int i=lx; i<p.m_X+width / 2;i++)
-    {
-        for(int j=ly;j<p.m_Y+width / 2;j++)
-        {
-            Point curP={i,j};
-            if(pDis(curP, p)<width*width / 4)TAS.insert(to_string(curP.m_X)+" "+to_string(curP.m_Y));
-        }
-    }
 
 
-}
 
 
-void User:: addToTAS(Point p1, Point p2,int width)
-{
-    int lx1= p1.m_X-width / 2<0?0:p1.m_X-width / 2;
-    int ly1= p1.m_Y-width / 2<0?0:p1.m_Y-width / 2;
-    int lx2= p2.m_X-width / 2<0?0:p2.m_X-width / 2;
-    int ly2= p2.m_Y-width / 2<0?0:p2.m_Y-width / 2;
-    int rx= p1.m_X+width / 2<p2.m_X+width / 2?p2.m_X+width / 2:p1.m_X+width / 2;
-    int ry= p1.m_Y+width / 2<p2.m_Y+width / 2?p2.m_Y+width / 2:p1.m_Y+width / 2;
-    int lx=lx1<lx2?lx1:lx2;
-    int ly=ly1<ly2?ly1:ly2;
-    
-    for( int i=lx; i<rx;i++)
-    {
-        for(int j=ly;j<ry;j++)
-        {
-            Point curP={i,j};
-            if(lDis(curP, p1,p2)<width*width / 4)TAS.insert(to_string(curP.m_X)+" "+to_string(curP.m_Y));
-        }
-    }
-}
-
-float findInterTwoCycle(Point p1,int h1,Point p2,int h2,float avgHopDis)
-{
-    const float pi=3.141592653589793;
-    float d=sqrt(pDis(p1,p2));
-    float A1=0;
-    float r1=h1*avgHopDis;
-    float r2=h2*avgHopDis;
-    float r3=(h1-1)*avgHopDis;
-    
-    if(d>=r1+r2)return 0;
-    else if(r2>=r1+d)return pi*(r1*r1-r3*r3);
-    else if(r1>r2+d)A1=pi*r2*r2;
-    
-    if(A1==0)
-    {
-      if(d > 0 && r2 > 0 && r3 >0)
-        A1=r2*r2*acos((d*d+r2*r2-r1*r1) / (2*d*r2))+r1*r1*acos((d*d+r1*r1-r2*r2) / (2*d*r1))-0.5*sqrt((-d+r2+r1)*(d+r2-r1)*(d-r2+r1)*(d+r1+r2));
-      else
-        A1=10000;
-    }
-    
-    if (r3==0)return A1;
-    float A2=0;
-    if(d>=r3+r2)return A1;
-    else if(r2>=r3+d)return A1-pi*r3*r3;
-    else if(r3>=r2+d)return 0;
-    if(d > 0 && r2 > 0 && r3 >0)
-        A2=r2*r2*acos((d*d+r2*r2-r3*r3) / (2*d*r2))+r3*r3*acos((d*d+r3*r3-r2*r2) / (2*d*r3))-0.5*sqrt((-d+r2+r3)*(d+r2-r3)*(d-r2+r3)*(d+r3+r2));
-    else
-        A2=-10000;
-    return A1-A2;
-
-}
-
-float rootX(float y,float a,float b)
-{
-  return sqrt(b*b+y*y)*a/b; 
-}
-
-vector<tuple<float,float>> getRoot(float x0,float y0,float r,float a,float b,vector<float>& yr)
-{
-  float aa=a;
-  float bb=b;
-  float cc=sqrt(a*a+b*b);
-  float alph=-2*y0*b*b/(a*a+b*b);
-  float beta=(a*a*b*b+x0*x0*b*b+b*b*y0*y0-r*r*b*b)/(a*a+b*b);
-  float gama=2*x0*a*b/(a*a+b*b);
-  a=1;
-  float e=beta*beta-gama*gama*b*b;
-  b=2*alph;
-  float c=alph*alph+2*beta-gama*gama;
-  float d=2*alph*beta;
-  
-  vector<float> temp = realQudricRoot(b,c,d,e);
-  //cout<<"temp size : "<<temp.size()<<endl;
-  
-  
-  vector<tuple<float,float>> res;
-  if(!temp.empty()) std::sort(temp.begin(),temp.end());
-  float pre=-55555.5;
-  float cnt=0;
-  for(vector<float>::iterator it=temp.begin();it!=temp.end();it++)
-  {
-    float y=*it;
-    float x=rootX(y,aa,bb);
-    
-    //cout<<"root y: "<<y<<"; root x: "<<x<<endl;
-    //cout<<"cons1: "<<abs(euDis(x,y,x0,y0)-r*r)<< "; cons2: "<<abs(sqrt(euDis(x,y,-cc,0))-sqrt(euDis(x,y,cc,0))-2*aa)<<endl;
-    //abs(euDis(x,y,x0,y0)-r*r)<r*150 &&
-    if( abs(euDis(x,y,x0,y0)-r*r)<r*r/16 && abs(sqrt(euDis(x,y,-cc,0))-sqrt(euDis(x,y,cc,0))-2*aa)<16 && abs(pre-y) > 5)
-    {
-      tuple<float,float> curP=make_tuple(x,y);
-      cnt+=1;
-      res.push_back(curP);
-      yr.push_back(y);
-      pre=y;
-    }
-    else
-    {
-      yr.push_back(abs(euDis(x,y,x0,y0)-r*r));    
-    }
-    
-  }
-  return res;
-}
-
-float testInterHyperCycle()
-{
-   while(1)
-   {
-     
-     Point h1;
-     Point h2;
-     Point c1;
-     int ah, h3;
-     float avgHopDis1;
-     float avgHopDis2;
-     float suppose;
-     //string temp;
-     //getline(cin,temp);
-     //stringstream ttt(temp);
-     cout<<"type in data: ";
-     cin>>h1.m_X;
-     cin>>h1.m_Y;   
-     cin>>h2.m_X;
-     cin>>h2.m_Y;
-     cin>>c1.m_X; 
-     cin>>c1.m_Y;
-     cin>>ah;
-     cin>>h3;
-     cin>>avgHopDis1;
-     cin>>avgHopDis2;     
-     cin>>suppose; 
-     vector<float> f1;
-     vector<float> f2;
-     float cal=findInterHyperCycle( h1, h2, c1, ah, h3, avgHopDis1, avgHopDis2, f1);
-     float cal2=findInterHyperCycle( h1, h2, c1, ah-1, h3, avgHopDis1, avgHopDis2, f2);
-     
-     cout<<"cal: "<<cal<<endl;
-     cout<<"cal2: "<<cal2<<endl;
-     cout<< "calculated value: "<<cal-cal2<<" VS "<<"real Value: "<<suppose<<endl;
-     
-                           
-   }
-}
 
 
-float findInterHyperCycle(Point h1,Point h2,Point c1,int ah,int h3,float avgHopDis1,float avgHopDis2,vector<float>& yr )
+
+
+/*
+float findInterEllipseCycle(Point h1,Point h2,Point c1,int ah,int h3,float avgHopDis1,float avgHopDis2,vector<float>& yr )
 {
   const float pi=3.141592653589793;
   float a = ah*avgHopDis1;
@@ -846,14 +354,7 @@ float findInterHyperCycle(Point h1,Point h2,Point c1,int ah,int h3,float avgHopD
   float ctheta = 1;
   float stheta = 0;
   
-  /*
-  float stheta = -c*(h2.m_Y+ys)/((h2.m_X+xs)*(h2.m_X+xs)+(h2.m_Y+ys)*(h2.m_Y+ys));
-  //not sure if this correct.
-  if ( h2.m_Y+ys != 0){
-    flip=true;
-    ctheta=-(h2.m_X+xs)*stheta/(h2.m_Y+ys);
-  }
-  */
+
   //line
   if(h2.m_X+xs==0 && h2.m_Y+ys>0){
     ctheta=0;
@@ -883,43 +384,12 @@ float findInterHyperCycle(Point h1,Point h2,Point c1,int ah,int h3,float avgHopD
   float c2y=stheta*cx+ctheta*cy  ;
   if (abs(a)<5 )
   {
-    //cout<<"c2x: "<<c2x<<"; r: "<<r<<endl;
-    if(r<abs(c2x))
-    {
-        yr.push_back(-12345);
-        yr.push_back(c2x);
-        
-        if(c2x>0)return 0;
-        else{
-         return pi*r*r;
-         yr.push_back(pi*r*r);
-       }
-    }
-    else
-    {
-      //cout<<"0 area: "<<2*acos(c2x/r)<<endl;
-      yr.push_back(-100);
-      if(flip)yr.push_back(ctheta);
-      else yr.push_back(100);
-      yr.push_back(c2x);
-      float totalArea=acos(c2x/r)*r*r-c2x*sqrt(r*r-c2x*c2x);
-      yr.push_back(pi*r*r);
-      return totalArea;
-    }
+    yr.push_back(-12345);
+    yr.push_back(c2x);
+    return 0;
   }
   
   vector<tuple<float,float>> rrr = getRoot(c2x, c2y, r, a, b,yr);
-  /*
-  short count=0;
-  cout<<"root numbers: "<<rrr.size()<<endl;
-  for( auto& tp : rrr)
-  {
-     cout<<"root "<<count++<<" is: ("<<get<0>(tp)<<", "<<get<1>(tp)<<")"<<endl;
-  
-  }
-  */
-  //handle size=3 later if we have time
-  if(rrr.size()>=3)return 400000000;
   
   
   if(rrr.size()<2 && sqrt(pDis(c1,h1))-sqrt(pDis(c1,h2))>2*a)return 0;
@@ -952,52 +422,7 @@ float findInterHyperCycle(Point h1,Point h2,Point c1,int ah,int h3,float avgHopD
   return 0;
 }
 
-
-float hyperArea(float a,float b,tuple<float,float> z1,tuple<float,float> z2)
-{
-    float z=get<0>(z1)-get<1>(z1)*(get<0>(z2)-get<0>(z1))/(get<1>(z2)-get<1>(z1));
-    float m=(get<0>(z2)-get<0>(z1))/(get<1>(z2)-get<1>(z1));
-    float y2=get<1>(z2);
-    float y1=get<1>(z1);
-    return abs(hyperAreaHelper(a,b,m,z,y1)-hyperAreaHelper(a,b,m,z,y2));
-}
- 
-float hyperAreaHelper(float a,float b,float m,float z,float y)
-{
-    return a/b*(y*sqrt(b*b+y*y)/2 + b*b*log(y+sqrt(b*b+y*y))/2) - m*y*y/2-z*y;
-}
-
-int euDis(int x1, int y1, int x2, int y2)
-{
-    return (x1-x2)*(x1-x2)+(y1-y2)*(y1-y2);
-}
-
-int pDis(Point p1, Point p2)
-{
-    return (p1.m_X-p2.m_X)*(p1.m_X-p2.m_X)+(p1.m_Y-p2.m_Y)*(p1.m_Y-p2.m_Y);
-}
-
-int lDis(Point p0, Point p1, Point p2)
-{
-    if(p2.m_X!=p1.m_X && p2.m_Y != p1.m_Y)
-        return ((p2.m_X-p1.m_X)*(p1.m_Y-p0.m_Y)-(p1.m_X-p0.m_X)*(p2.m_Y-p1.m_Y))*((p2.m_X-p1.m_X)*(p1.m_Y-p0.m_Y)-(p1.m_X-p0.m_X)*(p2.m_Y-p1.m_Y))/((p2.m_X-p1.m_X)*(p2.m_X-p1.m_X)+(p2.m_Y-p1.m_Y)*(p2.m_Y-p1.m_Y));
-    else
-        return sqrt(pDis(p0,p1));
-}
-
-
-vector<float> realQudricRoot(float a, float b, float c, float d)
-{
-    vector<float> res;
-    complex<double>*  solutions = solve_quartic(a, b, c, d);
-    for(int i = 0 ; i < 4; i++)
-    {
-        if(abs(solutions[i].imag())<0.0001)res.push_back(static_cast<float>(solutions[i].real()));
-    }
-    delete[] solutions;
-    return res;
-}
-
+*/
 
 
 int getUser(string tmpID){
@@ -1046,7 +471,7 @@ void addTrajectory(string tmpID,int epoch,int traInd, int X,int Y)
 }
 
 
-void setupTAS(string tmpID,int epoch, string requestID, int totalStroke)
+void tcp_client::setupTAS(string tmpID,int epoch, string requestID, int totalStroke)
 {
     //cout<<"setting TAS"<<endl;
     User& curUser = allUser[getUser(tmpID)];
@@ -1082,18 +507,7 @@ void configNodes(string tmpID,int epoch,int nodeID,int X,int Y)
 }
 
 
-int myStoi(string data)
-{
-     stringstream geek(data); 
-    
-    // The object has the value 12345 and stream 
-    // it to the integer x 
-    int x = 0; 
-    geek >> x;
-    //cout<<"transfer string "<<data<<"to integer "<<x<<endl; 
-    return x;
 
-}
 
 string getRoutingMSG(string userRequest)
 {
@@ -1230,13 +644,7 @@ string getRoutingMSG(string userRequest)
 }
 
 
-
-
-
-
-
-
-void addData(string data)
+void tcp_client::addData(string data)
 {
     int begin=data.find("*,");
     int end=data.find(",*",begin+1);
@@ -1429,29 +837,22 @@ void tcp_client::receive(char buffer[])
 }
 
 
-void handle(tcp_client c)
-{
-    
-   c.send_data("abc");
 
-}
-
-
-void repeatSend(tcp_client c)
+void tcp_client::repeatSend()
 {
 
     unsigned long  counter=0;
     while(1)
     {
         
-        c.send_data(to_string(counter++));
+        send_data(to_string(counter++));
         this_thread::sleep_for(chrono::milliseconds(5000));   
     }
 
 }
 
 
-void listenString()
+void tcp_client::listenString()
 {
     
     while(1)
@@ -1470,7 +871,7 @@ void listenString()
 }
 
 
-void computationQueueHandle(tcp_client c)
+void tcp_client::computationQueueHandle()
 {
   while(1)
   {
@@ -1482,8 +883,8 @@ void computationQueueHandle(tcp_client c)
             cout<<"computing "<<popString<<endl;
             string res=getRoutingMSG(popString); 
             cout<<"======Result: "<<res<<endl;
-            c.send_data(popString+res); 
-            c.send_data(popString+res);           
+            send_data(popString+res); 
+            send_data(popString+res);           
         }
 
         
@@ -1492,35 +893,25 @@ void computationQueueHandle(tcp_client c)
   }
 }
 
-void add(int id)
-{
-    int count=-2000000000;
-    while(count<2000000000)count=count+1;
-    intQueue.push(id);
-    return;
 
-}
 
 int main(int argc , char *argv[])
 {  
   srand(time(NULL));
 ///*
-	tcp_client c;
-	string host="64.251.147.176";
-
-  
+	tcp_client  c ;
+	string host="64.251.147.176";  
 	
 	//connect to host
-	c.conn(host , 7676);
-    thread stringListeningThread(listenString);	
-    thread hh(repeatSend,c);
-    thread cq(computationQueueHandle,c);
+	c.conn(host , 6267);
+  thread stringListeningThread(&tcp_client::listenString, &c);	
+  thread hh(&tcp_client::repeatSend,&c);
+  thread cq(&tcp_client::computationQueueHandle,&c);
 	//receive and echo reply
 	char buffer[4096];
 	c.receive(buffer);
 //*/
-	//done
-	//testInterHyperCycle();
+
 	return 0;
 }
  

@@ -1,0 +1,85 @@
+#ifndef TCP_CLIENT_H
+#define TCP_CLIENT_H
+#include<iostream>	//cout
+#include<stdio.h>	//printf
+#include<string.h>	//strlen
+#include<string>	//string
+#include<cstring>
+#include<sys/socket.h>	//socket
+#include<arpa/inet.h>	//inet_addr
+#include<netdb.h>	//hostent
+#include<stdlib.h>
+#include "allConstant.h"
+#include <unistd.h>
+#include <thread>
+#include <chrono> 
+#include "safeQueue.h"
+#include "quartic.h"
+#include <map>
+#include <sstream> 
+#include <iterator>
+#include <unordered_set>
+#include <vector>
+#include <math.h>
+#include <future>
+#include <complex>
+#include <algorithm>
+
+class tcp_client
+{
+private:
+	int sock;
+	std::string address;
+	int port;
+	struct sockaddr_in server;
+	
+public:
+	tcp_client();
+  Queue<string> stringQueue;
+  Queue<string> computingQueue;
+	bool conn(string, int);
+	void listenString();
+	void repeatSend();
+	void computationQueueHandle();
+	bool send_data(string data);
+	void addData(string data);
+  void setupTAS(string tmpID,int epoch, string requestID,int totalStroke);
+	void receive(char buf[]);
+};
+
+tcp_client::tcp_client()
+{
+	sock = -1;
+	port = 0;
+	address = "";
+}
+
+
+
+void tcp_client::setupTAS(string tmpID,int epoch, string requestID, int totalStroke)
+{
+    //cout<<"setting TAS"<<endl;
+    User& curUser = allUser[getUser(tmpID)];
+    //cout<<epoch<<" : "<<curUser.getEpoch()<<endl;
+    if(epoch >= curUser.getEpoch() && curUser.resultMap.find(requestID)==curUser.resultMap.end())
+    {
+      //cout<<"push to computing Queue for : " <<tmpID+" "+requestID<<endl;
+      curUser.resultMap.insert(make_pair(requestID,""));
+      curUser.genTAS(totalStroke);
+      computingQueue.push(tmpID+" "+requestID);
+      //cout<<"push to computing Queue for : " <<tmpID+" "+requestID<<endl;
+      //curUser.printArea();
+      
+    }
+    else
+    {
+      cout<<"The computation requestion already in processing"<<endl;
+    
+    }
+}
+
+
+
+
+
+#endif
