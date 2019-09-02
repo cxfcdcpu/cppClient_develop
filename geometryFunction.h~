@@ -1,5 +1,5 @@
-#ifndef GENERALFUNC_H
-#define GENERALFUNC_H
+#ifndef GEOMETRYFUNCTION_H
+#define GEOMETRYFUNCTION_H
 #include <iostream>
 #include <string>
 #include <unordered_set>
@@ -11,7 +11,28 @@
 #include "generalFunction.h"
 
 
+struct Point2
+{
+  double m_X;
+  double m_Y;
+
+};
+
+ostream & operator<<(ostream& os, Point2 p){
+  os<<"("<<p.m_X<<", "<<p.m_Y<<")"<<endl;
+  return os;
+}
+
+Point2 operator -(Point2 &p1, Point2 &p2)
+{
+  Point2 temp = {p1.m_X-p2.m_X, p1.m_Y-p2.m_Y};
+  return temp;
+
+}
+
 int euDis(int x1,int y1,int x2,int y2);
+double euDis2(double x1,double y1,double x2,double y2);
+double getAngle(Point2 p);
 float findInterTwoCycle(Point,int,Point,int,float);
 float findInterHyperCycle(Point,Point,Point, int,int,float,float,vector<float>&);
 vector<tuple<float,float>> getRoot(float x0,float y0,float r,float a,float b,vector<float>&);
@@ -19,10 +40,134 @@ float rootX(float,float,float);
 float hyperArea(float a,float b,tuple<float,float> z1,tuple<float,float> z2);
 vector<float> realQudricRoot(float b,float c,float d,float e);
 float hyperAreaHelper(float a,float b,float m,float z,float y);
+vector<Point2> ellipseSpectialCase1(double a,double b,double r);
+float findInterEllipseCycle(Point2 h1,Point2 h2,Point2 c1,int ah,int h3,float avgHopDis1,float avgHopDis2,vector<float>& yr );
+vector<Point2> getRootEllipse(float cx,float cy,float r,float a, float b, float e,vector<float>& yr);
+double getCircleSegArea(Point2 p1,Point2 p2, Point2 orig, double r);
+double getEllipseSegArea(Point2 p1,Point2 p2, Point2 orig,double a, double b);
+double ellipseSectionArea(Point2 p1,Point2 p2,Point2 orig, double a,double b);
+double getPolarAngle(Point2 p, double a,double  b);
+double triangleArea(Point2 start, Point2 end, Point2 orig);
+double getDAngle(Point2 start, Point2 end, Point2 orig);
+double getQuadriArea(Point2 p1,Point2 p2,Point2 p3,Point2 p4);
 
 int euDis(int x1, int y1, int x2, int y2)
 {
     return (x1-x2)*(x1-x2)+(y1-y2)*(y1-y2);
+}
+
+double euDis2(double x1,double y1,double x2,double y2){
+  return sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
+  
+}
+
+double getAngle(Point2 p)
+{
+  double dis = euDis2(0,0, p.m_X, p.m_Y);  
+  if(p.m_Y>=0)return acos(p.m_X/dis);
+  else return 2*M_PI-acos(p.m_X/dis);
+}
+
+double getDAngle(Point2 start, Point2 end, Point2 orig)
+{
+  double angle1 = getAngle(start-orig);
+  double angle2 = getAngle(end-orig);
+  
+  //cout<<"angle1: "<<angle1<<" ;angle2: "<<angle2<<endl;
+  return angle2-angle1>=0?angle2-angle1: 2*M_PI + angle2-angle1;
+
+
+
+}
+
+double triangleArea(Point2 start, Point2 end, Point2 orig)
+{
+  Point2 temp1 = start - orig;
+  Point2 temp2 = end - orig;
+  double area = abs(temp1.m_X*temp2.m_Y-temp2.m_X*temp1.m_Y)/2;
+  //cout<<"triangle area: "<<area<<endl;
+  return area;
+}
+
+double getPolarAngle(Point2 p, double a,double  b)
+{
+  return p.m_Y>=0?acos(p.m_X/a):(2*M_PI-acos(p.m_X/a));
+
+}
+
+double ellipseSectionArea(Point2 p1,Point2 p2,Point2 orig, double a,double b)
+{
+  Point2 temp1 = p1 - orig;
+  Point2 temp2 = p2 - orig;
+  double theta1 = getPolarAngle(temp1, a, b);
+  double theta2 = getPolarAngle(temp2, a, b);
+  
+  double deltaTheta = theta1<theta2?theta2- theta1:2*M_PI+theta2-theta1;
+  
+  return deltaTheta*a*b/2;
+
+}
+
+double getEllipseSegArea(Point2 p1,Point2 p2, Point2 orig,double a, double b)
+{
+  double dAngleE = getDAngle(p1, p2, orig);
+  double signE =dAngleE>M_PI?1.0:-1.0;
+  
+  double areaE = ellipseSectionArea(p1,p2,orig, a, b) + signE*triangleArea(p1,p2,orig);
+  return areaE;
+}
+
+double getCircleSegArea(Point2 p1,Point2 p2, Point2 orig, double r)
+{
+  double dAngle = getDAngle(p1, p2, orig);
+  double sign =dAngle>M_PI?1.0:-1.0;
+  
+  double area = dAngle*r*r/2 + sign*triangleArea(p1,p2,orig);
+  return area;
+}
+
+double getQuadriArea(Point2 p1,Point2 p2,Point2 p3,Point2 p4)
+{
+  return abs((p3.m_X-p1.m_X)*(p4.m_Y-p2.m_Y)-(p4.m_X-p2.m_X)*(p3.m_Y-p1.m_Y))/2;
+
+
+}
+
+vector<Point2> ellipseSpectialCase1(double a,double b,double r){
+
+  vector<Point2> result;
+  if(r<a && r>b){
+    double y= sqrt((a*a*b*b-r*r*b*b)/(a*a-b*b));
+    double x = sqrt((a*a*r*r-a*a*b*b)/(a*a-b*b));
+    Point2 p1 = {x,y};
+    Point2 p2 = {x,-y};
+    Point2 p3 = {-x,y};
+    Point2 p4 = {-x,-y};
+    result.push_back(p1);
+    result.push_back(p2);
+    result.push_back(p3);
+    result.push_back(p4);
+    
+  }
+  return result;
+}
+
+void sortWithAngle(vector<Point2> &vp){
+  for(vector<Point2>::iterator it = vp.begin(); it != vp.end(); ++it){
+		for(vector<Point2>::iterator it2 = vp.begin(); it2 != vp.end()-1; ++it2){
+		
+		  //cout<<"p: "<<*it<<" angle: "<<getAngle(*it)<<endl;
+		  	 
+		  if(getAngle(*it2)>getAngle(*(it2+1))){
+		    
+		    Point2 temp = *(it2+1);
+		    *(it2+1) = *it2;
+		    *it2 = temp;
+		  }   
+		   
+		}		
+  }
+
 }
 
 float findInterTwoCycle(Point p1,int h1,Point p2,int h2,float avgHopDis)
@@ -178,6 +323,186 @@ float findInterHyperCycle(Point h1,Point h2,Point c1,int ah,int h3,float avgHopD
   }
   return 0;
 }
+
+
+
+
+float findInterEllipseCycle(Point h1,Point h2,Point c1,int ah,int h3,float avgHopDis1,float avgHopDis2,vector<float>& yr )
+{
+
+  float a = ah*avgHopDis1;
+  float r = h3*avgHopDis2;
+  float c = sqrt(pDis(h1,h2))/2;
+  
+  if( a<=c )return 0;
+  
+  float b = sqrt( a * a - c*c);
+  
+  float xs = -(h1.m_X + h2.m_X)/2;
+  float ys = -(h1.m_Y + h2.m_Y)/2;
+
+  float ctheta = 1;
+  float stheta = 0;
+  
+
+  //line
+  if(h2.m_X+xs==0 && h2.m_Y+ys>0){
+    ctheta=0;
+    stheta=-1;
+  }
+  else if(h2.m_X+xs<0 && h2.m_Y+ys==0){
+    ctheta=-1;
+    stheta=0;
+  }
+  else if(h2.m_X+xs==0 && h2.m_Y+ys<0){
+    ctheta=0;
+    stheta=1;
+  }
+  else if(h2.m_X+xs>0 && h2.m_Y+ys==0){
+    ctheta=1;
+    stheta=0;
+  }
+  else {
+
+    ctheta=(h2.m_X+xs)/c;
+    stheta=-(h2.m_Y+ys)/c;
+  }
+              
+  float cx=c1.m_X+xs;
+  float cy=c1.m_Y+ys;
+  float c2x=ctheta*cx-stheta*cy;
+  float c2y=stheta*cx+ctheta*cy  ;
+
+  
+  vector<Point2> result = getRootEllipse(c2x, c2y, r, a, b, c,yr);
+  
+  
+  
+  
+  
+  int vsize = result.size();
+  /*
+	cout<<"there are "<<vsize<<" of roots"<<endl;
+	for(int i=0;i <vsize;i++)
+	{
+	  cout<<"Point "<<i<<": "<<result[i]<<"; ";
+	}
+	cout<<endl;
+	*/
+	
+	double ex =0;
+	double ey =0;
+	double lx = -c;
+	double rx = c;
+	double ly =0;
+	double ry =0;
+	double area =0;
+  Point2 newOrig = {cx, cy};
+  Point2 orig = {0.0,0.0};
+	if(vsize==0 || vsize == 1)
+	{
+	  //case 3,6 seperate
+	  if(euDis2(ex,ey,cx,cy)>=r && euDis2(lx,ly, cx,cy)+euDis2(rx,ry,cx,cy)>=2*a){
+	    area = 0;
+	  
+	  }
+	  //one contained another.
+	  else{
+	    area = min(M_PI*a*b, M_PI*r*r);
+	    
+	  }
+	
+	
+	}
+	else{
+	  //case 2,5,9 which has two intersection points.
+	  if(vsize ==2 ){
+
+
+	    area = min(getEllipseSegArea(result[0],result[1],orig,a,b),getCircleSegArea(result[0],result[1],newOrig, r));
+	    area += min(getEllipseSegArea(result[1],result[0],orig,a,b),getCircleSegArea(result[1],result[0],newOrig, r));
+	    cout<<"area: "<<area<<endl;
+	  
+	  }
+	  //has four intersection points.
+	  else if(vsize ==4){
+	    double quadArea = getQuadriArea(result[0],result[1],result[2],result[3]);
+	    area = quadArea;
+	    for(int j=0;j<4;j++)
+	    {
+	      area+= min(getEllipseSegArea(result[j],result[(j+1)%4],orig,a,b),getCircleSegArea(result[j],result[(j+1)%4],newOrig, r));
+	    }
+	    cout<<"quadArea: "<< quadArea<<endl; 
+	    cout<<"area: "<<area<<endl;
+	
+	  }
+	}
+  
+  return area;
+}
+
+vector<Point2> getRootEllipse(float cx,float cy,float r,float a, float b, float e,vector<float>& yr)
+{
+    
+
+		//cout<<"a: "<<a<<" b: "<<b<<" r: "<<r<<endl;
+		
+		double m=(b*b-a*a);
+		double n = a*a*b*b+b*b*cx*cx+b*b*cy*cy -b*b*r*r;
+		//cout<<"m: "<<m<<" n: "<<n<<endl;
+		double p1 = -4*b*b*cy/m;
+		double p2 = (2*m*n+4*b*b*b*b*cy*cy+4*b*b*a*a*cx*cx)/m/m;
+		double p3 = -4*b*b*cy*n/m/m;
+		double p4 = (n*n-4*b*b*cx*cx*a*a*b*b)/m/m;
+  
+    vector<Point2> result;
+		if(abs(cx)<0.0001 && abs(cy)<0.0001){
+
+		   result = ellipseSpectialCase1(a,b,r);
+		   sortWithAngle(result);
+		   /*
+		   for(vector<Point2>::iterator it = result.begin(); it != result.end(); ++it){
+		      cout<<*it;		   
+		   }
+       */
+		
+		}
+		else{
+		    complex<double>*  solutions = solve_quartic(p1, p2, p3, p4);
+		    
+		    vector<double> temp;
+		    
+		    double preY=2147483647;
+		    for( int i =0;i<4;i++){
+		      double res = solutions[i].real();
+		      if(abs(solutions[i].imag())<0.0001 && abs(preY-res)>0.0001 && (b*b-res*res)>=0 && (r*r-(res-cy)*(res-cy))>=0){
+		        temp.push_back(res);
+		        preY = res;
+		      }		    
+		    }
+		    
+		    for(vector<double>::iterator it = temp.begin(); it != temp.end(); ++it){
+		      double y = *it;
+		      double res1 = sqrt(a*a*(1-y*y/b/b));
+		      double res2 = -sqrt(a*a*(1-y*y/b/b));
+		      if( abs((res1-cx)*(res1-cx)+(y-cy)*(y-cy)-r*r)<0.1 ){
+		        Point2 tempPoint = {res1, y};
+		        result.push_back(tempPoint);
+		      }
+		      if(abs((res2-cx)*(res2-cx)+(y-cy)*(y-cy)-r*r)<0.1 && abs(res1-res2)>0.1){
+		        Point2 tempPoint = {res2, y};
+		        result.push_back(tempPoint);
+		      }
+		      
+		    }
+		    sortWithAngle(result);
+
+		    delete[] solutions;
+		
+		}
+		return result;
+}
+
 
 vector<tuple<float,float>> getRoot(float x0,float y0,float r,float a,float b,vector<float>& yr)
 {

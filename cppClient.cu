@@ -30,7 +30,7 @@
 #include "HyperTrial.h"
 #include "generalFunction.h"
 #include "userClass.h"
-
+#include "EllipseTrial.h"
 
 
 using namespace std;
@@ -91,102 +91,7 @@ tcp_client::tcp_client()
 
 
 
-/*
-vector<EllipseTrial> User::findEllipseTrial(short hv[][anchorSize])
-{
 
-    vector<EllipseTrial> trials;
-    
-    vector<future<vector<EllipseTrial>>> VF;
-    for(int i=1;i<=12;i++)
-    {
-      for(int j=1;j<=10;j++)
-      {
-        VF.push_back(async(&User::ellipseHelper,this,hv,j,i));
-      }
-    }
-    
-    for(auto& V:VF)
-    {
-      vector<EllipseTrial> curT = V.get();
-      //cout<<"Threads results number: "<<curT.size()<<endl;
-      for(vector<EllipseTrial>::iterator it = curT.begin();it != curT.end();++it)
-      {
-        trials.push_back(*it);
-      }
-    }
-    
-    return trials;
-}
-*/
-
-
-/*
-vector<ellipseTrial> User::ellipseHelper(short hv[][anchorSize],int  ah,int  h3)
-{
-    vector<ellipseTrial> trials;
-
-    for(int i=0;i<anchor;i++)
-    {
-      for(int j=0;j<anchor;j++)
-      {
-        if(i!=j)
-	      {
-          float avgHopDis1= radioRange;
-          float avgHopDis2= radioRange;
-          float dis=sqrt(euDis(xList[i],yList[i],xList[j],yList[j]));
-          Point p1={xList[i],yList[i]};
-          Point p2={xList[j],yList[j]};
-          if(hv[i][j]!=-1&&hv[i][j]!=0)avgHopDis1=(dis + radioRange/3) / hv[i][j];
-          for(int z=0;z<anchor;z++)
-          {
-            //cout<<"Thread is working"<<endl;
-            Point p3={xList[z],yList[z]};
-            float dis2=sqrt(euDis(xList[z],yList[z],xList[j],yList[j]));
-            float dis3=sqrt(euDis(xList[z],yList[z],xList[i],yList[i]));
-            if(hv[z][j]!=-1&&hv[z][j]!=0 && hv[z][i]!=-1&&hv[z][i]!=0)
-            {
-	            avgHopDis2=(dis+ dis2 +dis3+radioRange) / (hv[i][j]+hv[z][j]+hv[z][i]);
-	            //cout<<"avgHopDis2: "<<avgHopDis2<<endl;
-	            vector<float> yr1;
-	            vector<float> yr2;
-	            float area1 = findInterEllipseCycle(p1,p2,p3,ah,h3,avgHopDis1,avgHopDis2,yr1);
-	            float area2 = findInterEllipseCycle(p1,p2,p3,(ah-1),h3,avgHopDis1,avgHopDis2,yr2);
-	            
-	            //cout<<"area1 is : "<< area1<<endl;
-	            //cout<<"area2 is : "<< area2<<endl;
-	        
-	            if(area1-area2>1000 && area1-area2 < 640000)
-	            {
-	              float yroot[8]={0.0};
-	              int startInd=0;
-	              for(float& y1:yr1)
-	              {
-	                yroot[startInd++]=y1;
-	              }
-	              startInd=4;
-	              for(float& y2:yr2)
-	              {
-	                yroot[startInd++]=y2;
-	              }
-	              ellipseTrial tryEntry={i,j,z,static_cast<float>(xList[i]),static_cast<float>(yList[i]),
-	                                static_cast<float>(xList[j]),static_cast<float>(yList[j]),static_cast<float>(xList[z]),
-	                                static_cast<float>(yList[z]),static_cast<float>(ah),static_cast<float>(h3),
-	                                static_cast<float>(avgHopDis1),static_cast<float>(avgHopDis2),
-	                                static_cast<float>(area1-area2),0,0,0};
-	              memcpy(&(tryEntry.yroot), &yroot, 32) ;    
-	              trials.push_back(tryEntry);
-	            }
-            }
-          }
-          
-        }
-      }
-    }
-    //cout<<"trials size: "<<trials.size()<<endl;
-    return trials;
-}
-*/
 
 
 
@@ -407,99 +312,6 @@ __global__ void goOver1(int n, twoCycleTrial *data, float *area,int m){
 }
 
 
-
-
-
-
-
-
-
-/*
-float findInterEllipseCycle(Point h1,Point h2,Point c1,int ah,int h3,float avgHopDis1,float avgHopDis2,vector<float>& yr )
-{
-  const float pi=3.141592653589793;
-  float a = ah*avgHopDis1;
-  float r = h3*avgHopDis2;
-  float c = sqrt(pDis(h1,h2))/2;
-  float b = sqrt( c * c - a * a);
-  
-  float xs = -(h1.m_X + h2.m_X)/2;
-  float ys = -(h1.m_Y + h2.m_Y)/2;
-  bool flip = false;
-  float ctheta = 1;
-  float stheta = 0;
-  
-
-  //line
-  if(h2.m_X+xs==0 && h2.m_Y+ys>0){
-    ctheta=0;
-    stheta=-1;
-  }
-  else if(h2.m_X+xs<0 && h2.m_Y+ys==0){
-    ctheta=-1;
-    stheta=0;
-  }
-  else if(h2.m_X+xs==0 && h2.m_Y+ys<0){
-    ctheta=0;
-    stheta=1;
-  }
-  else if(h2.m_X+xs>0 && h2.m_Y+ys==0){
-    ctheta=1;
-    stheta=0;
-  }
-  else {
-
-    ctheta=(h2.m_X+xs)/c;
-    stheta=-(h2.m_Y+ys)/c;
-  }
-              
-  float cx=c1.m_X+xs;
-  float cy=c1.m_Y+ys;
-  float c2x=ctheta*cx-stheta*cy;
-  float c2y=stheta*cx+ctheta*cy  ;
-  if (abs(a)<5 )
-  {
-    yr.push_back(-12345);
-    yr.push_back(c2x);
-    return 0;
-  }
-  
-  vector<tuple<float,float>> rrr = getRoot(c2x, c2y, r, a, b,yr);
-  
-  
-  if(rrr.size()<2 && sqrt(pDis(c1,h1))-sqrt(pDis(c1,h2))>2*a)return 0;
-  else if(rrr.size()<2 && sqrt(pDis(c1,h1))-sqrt(pDis(c1,h2))<=2*a)return pi*r*r;
-  else 
-  {
-    float area=0;
-    
-    
-        tuple<float,float> z1 = rrr[0];
-        tuple<float,float> z2 = rrr[1];
-        float i1x = get<0>(z1) - c2x;
-        float i1y = get<1>(z1) - c2y;
-        float i2x = get<0>(z2) - c2x;
-        float i2y = get<1>(z2) - c2y; 
-        float sphi = (i1x*i2y-i1y*i2x)/(i1y*i1y+i1x*i1x);
-        float cphi = (i2x+i1y*sphi)/i1x*0.999999;
-        
-        if ((cphi>1 || cphi<-1)&& (1-sphi*sphi>=0))
-            cphi=abs(cphi)/cphi*sqrt(1-sphi*sphi);
-
-        float curveArea=hyperArea(a,b,z1,z2);
-        if (sphi<0)
-            area+=acos(cphi)*r*r/2-abs(sphi)*r*r/2-curveArea;            
-        else
-            area+=(2*pi-acos(cphi))*r*r/2+abs(sphi)*r*r/2-curveArea;
-
-    return area;
-  }
-  return 0;
-}
-
-*/
-
-
 int getUser(string tmpID){
     
     if(indexMap.find(tmpID)==indexMap.end()){
@@ -581,7 +393,139 @@ void configNodes(string tmpID,int epoch,int nodeID,int X,int Y)
 
 }
 
+string getRoutingMSG2(string userRequest)
+{
+    string res="";
+    stringstream ur(userRequest);
+    string tmpID;
+    string requestID;
+    ur>>tmpID;
+    ur>>requestID;
+    User& curUser = allUser[getUser(tmpID)];
+    
+    float *TAS,*d_TAS;
+    int tasSize=curUser.TAS.size();
+    TAS=(float*)malloc(sizeof(float)*tasSize*2);
+    cudaMalloc((void**)&d_TAS, sizeof(float) *tasSize*2);
+    int counter=0;
+    for(string t:curUser.TAS)
+    {
+        stringstream tt(t);
+        float x,y;
+        tt>>x;
+        tt>>y;
+        TAS[counter++]=x;
+        TAS[counter++]=y;
+    }
+    cudaMemcpy(d_TAS, TAS, sizeof(float) *tasSize*2, cudaMemcpyHostToDevice);
+    
+    //cout<<"I'm OK Here"<<endl;
+    short hv[nodeSize][anchorSize];
+    curUser.getHopInfo(hv);
+    vector<ellipseTrial> ellipseTrials=curUser.findEllipseTrial(hv);
+    counter=0; 
+    ellipseTrial *eTri;
+    ellipseTrial *d_eTri;
+    if(!ellipseTrials.empty())
+    {
+        eTri=(ellipseTrial*)malloc(sizeof(ellipseTrial)*ellipseTrials.size());
+        
+        //cout<<"I'm OK after here"<<endl;
+        for(ellipseTrial et: ellipseTrials)
+        {
+            eTri[counter++]=et;
+        }
+        cudaMalloc((void**)&d_eTri, sizeof(ellipseTrial) * ellipseTrials.size());
+        cudaMemcpy(d_eTri,eTri,sizeof(ellipseTrial) * ellipseTrials.size(),cudaMemcpyHostToDevice);
+        cout<<"finish copy totoal trial: "<<ellipseTrials.size()<<endl;        
+        bestEllipse<<<2048,256>>>(ellipseTrials.size(),d_eTri,d_TAS,tasSize*2);
+       
+        //cudaFree(d_cTri);
+    }
+    vector<hyperTrial> hyperTrials=curUser.findHyperTrial(hv);   
+    //cout<<"number of hyperTrial: "<<hyperTrials.size()<<endl;
+    hyperTrial *hTri;
+    hyperTrial *d_hTri;
+    int counter2=0;
+    if(!hyperTrials.empty())
+    {
+        hTri=(hyperTrial*)malloc(sizeof(hyperTrial)*hyperTrials.size());
 
+        //cout<<"I'm OK after here"<<endl;
+        for(hyperTrial ht: hyperTrials)
+        {
+            hTri[counter2++]=ht;
+        }
+        cudaMalloc((void**)&d_hTri, sizeof(hyperTrial) *hyperTrials.size());        
+        cudaMemcpy(d_hTri,hTri,sizeof(hyperTrial) *hyperTrials.size(),cudaMemcpyHostToDevice);
+        cout<<"finish copy totoal trial: "<<hyperTrials.size()<<endl;
+        cout<<"********TAS size is: "<<tasSize<<"******"<<endl;
+        bestHyper<<<2048,256>>>(hyperTrials.size(),d_hTri,d_TAS,tasSize*2);
+        //cudaDeviceSynchronize();
+        
+        //cudaFree(d_hTri);
+    }
+    
+    if(ellipseTrials.empty() || hyperTrials.empty())return "No result";
+    cudaDeviceSynchronize();
+    cudaMemcpy(eTri,d_eTri,sizeof(ellipseTrial) *ellipseTrials.size(),cudaMemcpyDeviceToHost); 
+    cudaMemcpy(hTri,d_hTri,sizeof(hyperTrial) *hyperTrials.size(),cudaMemcpyDeviceToHost);  
+      
+    cout<<counter<<" ||||||| "<<counter2<<" ||||||||||  "<<tasSize<<endl;
+    res+=findBestTry2(eTri,hTri, counter, counter2, curUser.TAS);
+    
+    sort(eTri, eTri+counter, sortEllipseTrial);
+    sort(hTri, hTri+counter2, sortHyperTrial);
+    counter = 1000000 < counter ? 1000000 : counter;
+    counter2 = 5000000 < counter2 ? 5000000 : counter2;
+    
+    
+    //cudaMalloc((void**)&d_cTri, sizeof(twoCycleTrial) *counter);
+    cudaMemcpy(d_eTri,eTri,sizeof(ellipseTrial) *counter, cudaMemcpyHostToDevice);
+    //cudaMalloc((void**)&d_hTri, sizeof(hyperTrial) *counter2);  
+    cudaMemcpy(d_hTri,hTri,sizeof(hyperTrial) *counter2, cudaMemcpyHostToDevice);
+
+    int newSize = 0;
+    do
+    {
+      
+      newSize=curUser.TAS.size();
+      cout<<counter<<" ||||||| "<<counter2<<" ||||||||||  "<<newSize<<endl;
+      int tasInd=0;
+      for(string t:curUser.TAS)
+      {
+          stringstream tt(t);
+          float x,y;
+          tt>>x;
+          tt>>y;
+          TAS[tasInd++]=x;
+          TAS[tasInd++]=y;
+      }
+      //cudaFree(d_TAS);
+      //cudaMalloc((void**)&d_TAS, sizeof(float) *newSize*2);
+      cudaMemcpy(d_TAS, TAS, sizeof(float) *newSize*2, cudaMemcpyHostToDevice);
+      goOver3<<<2048,256>>>(counter, d_eTri, d_TAS, newSize*2);
+      goOver2<<<2048,256>>>(counter2, d_hTri, d_TAS, newSize*2);
+      cudaDeviceSynchronize();
+      
+      //free(cTri);
+      //free(hTri);
+      //cTri=(twoCycleTrial*)malloc(sizeof(twoCycleTrial)*counter);
+      //hTri=(hyperTrial*)malloc(sizeof(hyperTrial)*counter2);
+      cudaMemcpy(eTri,d_eTri,sizeof(ellipseTrial) *counter,cudaMemcpyDeviceToHost);  
+      cudaMemcpy(hTri,d_hTri,sizeof(hyperTrial) *counter2,cudaMemcpyDeviceToHost);
+      res+=findBestTry2(eTri,hTri, counter, counter2, curUser.TAS);
+    }while(newSize>0.15*tasSize);
+    
+    cudaFree(d_eTri);
+    cudaFree(d_hTri);
+    cudaFree(d_TAS);
+    free(TAS);
+    free(eTri); 
+    free(hTri);     
+    return res;
+
+}
 
 
 string getRoutingMSG(string userRequest)
@@ -956,7 +900,7 @@ void tcp_client::computationQueueHandle()
         string popString=computingQueue.pop();
         if(popString.size()> 10){
             cout<<"computing "<<popString<<endl;
-            string res=getRoutingMSG(popString); 
+            string res=getRoutingMSG2(popString); 
             cout<<"======Result: "<<res<<endl;
             send_data(popString+res); 
             send_data(popString+res);           
@@ -975,7 +919,7 @@ int main(int argc , char *argv[])
   srand(time(NULL));
 ///*
 	tcp_client  c ;
-	string host="64.251.147.176";  
+	string host="131.151.90.6";  
 	
 	//connect to host
 	c.conn(host , 6267);

@@ -1,5 +1,5 @@
-#ifndef MY_STRUCT
-#define MY_STRUCT
+#ifndef POINT_H
+#define POINT_H
 #include <iostream>
 #include <string>
 #include <unordered_set>
@@ -9,8 +9,8 @@ using namespace std;
 
 struct Point
 {
-  int m_X;
-  int m_Y;
+  double m_X;
+  double m_Y;
 
 };
 

@@ -28,6 +28,9 @@
 #include "CycleTrial.h"
 #include "HyperTrial.h"
 #include "generalFunction.h"
+#include "geometryFunction.h"
+#include "EllipseTrial.h"
+
 
 using namespace std;
 
@@ -113,6 +116,8 @@ class User
     vector<twoCycleTrial> findTwoCycleTrial(short hv[][anchorSize]);
     vector<hyperTrial> findHyperTrial(short hv[][anchorSize]);
     vector<hyperTrial> hyperHelper(short hv[][anchorSize], int, int);
+    vector<ellipseTrial> findEllipseTrial(short hv[][anchorSize])
+    vector<ellipseTrial>  ellipseHelper(short hv[][anchorSize],int  ah,int  h3)
     
     void getHopInfo(short hv[][anchorSize]);
     //void updataHopVector();
@@ -132,6 +137,103 @@ void User:: printArea()
     
 
 
+}
+
+
+vector<ellipseTrial> User::findEllipseTrial(short hv[][anchorSize])
+{
+
+    vector<ellipseTrial> trials;
+    
+    vector<future<vector<ellipseTrial>>> VF;
+    for(int i=1;i<=12;i++)
+    {
+      for(int j=1;j<=10;j++)
+      {
+        VF.push_back(async(&User::ellipseHelper,this,hv,j,i));
+      }
+    }
+    
+    for(auto& V:VF)
+    {
+      vector<ellipseTrial> curT = V.get();
+      //cout<<"Threads results number: "<<curT.size()<<endl;
+      for(vector<ellipseTrial>::iterator it = curT.begin();it != curT.end();++it)
+      {
+        trials.push_back(*it);
+      }
+    }
+    
+    return trials;
+}
+
+
+
+
+vector<ellipseTrial> User::ellipseHelper(short hv[][anchorSize],int  ah,int  h3)
+{
+    vector<ellipseTrial> trials;
+
+    for(int i=0;i<anchor;i++)
+    {
+      for(int j=0;j<anchor;j++)
+      {
+        
+        if(i!=j)
+	      {
+          float avgHopDis1= radioRange;
+          float avgHopDis2= radioRange;
+          float dis=sqrt(euDis(xList[i],yList[i],xList[j],yList[j]));
+          Point p1={xList[i],yList[i]};
+          Point p2={xList[j],yList[j]};
+          if(hv[i][j]!=-1&&hv[i][j]!=0)avgHopDis1=(dis + radioRange/3) / hv[i][j];
+          for(int z=0;z<anchor;z++)
+          {
+            //cout<<"Thread is working"<<endl;
+            Point p3={xList[z],yList[z]};
+            float dis2=sqrt(euDis(xList[z],yList[z],xList[j],yList[j]));
+            float dis3=sqrt(euDis(xList[z],yList[z],xList[i],yList[i]));
+            if(hv[z][j]!=-1&&hv[z][j]!=0 && hv[z][i]!=-1&&hv[z][i]!=0)
+            {
+	            avgHopDis2=(dis+ dis2 +dis3+radioRange) / (hv[i][j]+hv[z][j]+hv[z][i]);
+	            //cout<<"avgHopDis2: "<<avgHopDis2<<endl;
+	            vector<float> yr1;
+	            vector<float> yr2;
+	            float area1 = findInterEllipseCycle(p1,p2,p3,ah,h3,avgHopDis1,avgHopDis2,yr1);
+	            float area2 = findInterEllipseCycle(p1,p2,p3,(ah-1),h3,avgHopDis1,avgHopDis2,yr2);
+	            
+	            //cout<<"area1 is : "<< area1<<endl;
+	            //cout<<"area2 is : "<< area2<<endl;
+	        
+	            if(area1-area2>1000 && area1-area2 < 640000)
+	            {
+	              float yroot[8]={0.0};
+	              int startInd=0;
+	              for(float& y1:yr1)
+	              {
+	                yroot[startInd++]=y1;
+	              }
+	              startInd=4;
+	              for(float& y2:yr2)
+	              {
+	                yroot[startInd++]=y2;
+	              }
+	              ellipseTrial tryEntry={i,j,z,static_cast<float>(xList[i]),static_cast<float>(yList[i]),
+	                                static_cast<float>(xList[j]),static_cast<float>(yList[j]),static_cast<float>(xList[z]),
+	                                static_cast<float>(yList[z]),static_cast<float>(ah),static_cast<float>(h3),
+	                                static_cast<float>(avgHopDis1),static_cast<float>(avgHopDis2),
+	                                static_cast<float>(area1-area2),0,0,0};
+	              memcpy(&(tryEntry.yroot), &yroot, 32) ;    
+	              trials.push_back(tryEntry);
+	            }
+            }
+          }
+          
+        }
+      }
+    }
+    //cout<<"trials size: "<<trials.size()<<endl;
+    return trials;
 }
 
 
@@ -161,6 +263,11 @@ vector<hyperTrial> User::findHyperTrial(short hv[][anchorSize])
     
     return trials;
 }
+
+
+
+
+
 
 void User :: getHopInfo(short hv[][anchorSize])
 {

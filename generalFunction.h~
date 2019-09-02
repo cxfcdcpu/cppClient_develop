@@ -1,12 +1,22 @@
-
+#ifndef GENERALFUNC_H
+#define GENERALFUNC_H
+#include <iostream>
+#include <string>
+#include <unordered_set>
+#include <math.h>
+#include <sstream>
+#include "Point.h"
+#include "CycleTrial.h"
+#include "HyperTrial.h"
 
 void updateTAS(twoCycleTrial ct, unordered_set<string> & st);
+void updateTAS(ellipseTrial ct, unordered_set<string> & st);
 void updateTAS(hyperTrial ht, unordered_set<string> & st);
 string findBestTry(twoCycleTrial * cTri, hyperTrial * hTri, int cs, int hs, unordered_set<string> & TAS);
 int myStoi(string data);
 int pDis(Point p1, Point p2);
 int lDis(Point p1, Point p2, Point p3);
-
+string findBestTry2(ellipseTrial * eTri, hyperTrial * hTri, int cs, int hs, unordered_set<string> & TAS);
 
 
 
@@ -56,6 +66,36 @@ void updateTAS(hyperTrial ct, unordered_set<string> & TAS)
     ss>>j;
     //cout<<j<<endl;
     float tt = sqrt((i-ct.c1X)*(i-ct.c1X)+(j-ct.c1Y)*(j-ct.c1Y))-sqrt((i-ct.c2X)*(i-ct.c2X)+(j-ct.c2Y)*(j-ct.c2Y));
+    float di=ct.c3X-i;
+    float dj=ct.c3Y-j;
+    float rr = ct.h3*ct.avgD2*ct.h3*ct.avgD2;
+    float a = ct.ah * ct.avgD1;
+    float a2 = (ct.ah-1.0)*ct.avgD1;
+    
+    if(di * di + dj * dj <= rr && tt <= 2*a && tt >= 2* a2)
+    {
+      //cout<<"erasing hyper tas"<<endl;
+      temp.push_back(st);
+    }
+  }
+  for(string st : temp)
+  {
+    TAS.erase(st);
+  }
+}
+
+
+void updateTAS(ellipseTrial ct, unordered_set<string> & TAS)
+{
+  vector<string> temp;
+  for(string st : TAS)
+  {
+    stringstream ss(st);
+    float i,j;
+    ss>>i;
+    ss>>j;
+    //cout<<j<<endl;
+    float tt = sqrt((i-ct.c1X)*(i-ct.c1X)+(j-ct.c1Y)*(j-ct.c1Y))+sqrt((i-ct.c2X)*(i-ct.c2X)+(j-ct.c2Y)*(j-ct.c2Y));
     float di=ct.c3X-i;
     float dj=ct.c3Y-j;
     float rr = ct.h3*ct.avgD2*ct.h3*ct.avgD2;
@@ -152,45 +192,82 @@ string findBestTry(twoCycleTrial * cTri, hyperTrial * hTri, int cs, int hs, unor
         res+=")";
     }
     
-            /*
-     Point h1;
-     Point h2;
-     Point c1;
-     int ah, h3;
-     float avgHopDis1;
-     float avgHopDis2;
-     float suppose;
-     //string temp;
-     //getline(cin,temp);
-     //stringstream ttt(temp);
-     h1.m_X=curUser.getX(hTri[maxInd].c1ID);
-     h1.m_Y=curUser.getY(hTri[maxInd].c1ID);   
-     h2.m_X=curUser.getX(hTri[maxInd].c2ID);
-     h2.m_Y=curUser.getY(hTri[maxInd].c2ID);
-     c1.m_X=curUser.getX(hTri[maxInd].c3ID); 
-     c1.m_Y=curUser.getY(hTri[maxInd].c3ID);
-     ah=hTri[maxInd].ah;
-     h3=hTri[maxInd].h3;
-     avgHopDis1=hTri[maxInd].avgD1;
-     avgHopDis2=hTri[maxInd].avgD2;     
-     suppose=hTri[maxInd].tArea; 
-     vector<float> f1;
-     vector<float> f2;
-     
-        float area1 = findInterHyperCycle(h1,h2,c1,ah,h3,avgHopDis1,avgHopDis2,f1);
-        float area2 = findInterHyperCycle(h1,h2,c1,(ah-1),h3,avgHopDis1,avgHopDis2,f2);
-        cout<<"area1: "<<area1<<"; area2: "<<area2<<endl;
-        cout<<"total area: "<<area1-area2<<" suppose: "<<suppose<<endl;
-        cout<<"roots are: ";
-        for(int kk=0;kk<8;kk++)
-        {
-          cout<< hTri[maxInd].yroot[kk]<< " ";
-        }
-        cout<<endl;
-       */ 
+
     return res;
 }
 
+
+string findBestTry2(ellipseTrial * eTri, hyperTrial * hTri, int cs, int hs, unordered_set<string> & TAS)
+{
+    string res="";
+    int maxInd=0;
+    float max1=0;
+    for(int k=0;k<cs;k++)
+    {
+        if(max1<eTri[k].grAr){
+          max1=eTri[k].grAr;
+          maxInd=k;
+        }
+    }
+    
+
+    int maxInd2=0;
+    float max2=0;
+    for(int k=0;k<hs;k++)
+    {
+        if(max2<hTri[k].grAr){
+          max2=hTri[k].grAr;
+          maxInd2=k;
+        }
+    }
+    
+    if(max1>=max2)
+    {
+        cout<<eTri[maxInd]<<endl;
+        
+        updateTAS(eTri[maxInd],TAS);
+        
+        res+="\n(";
+        res+=to_string(hTri[maxInd2].c1ID);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].c2ID);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].c3ID);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].ah);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].h3);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].avgD1);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].avgD2);
+        res+=")";
+    
+    }
+    else
+    {
+        cout<<hTri[maxInd2]<<endl;
+        updateTAS(hTri[maxInd2],TAS);
+        res+="\n(";
+        res+=to_string(hTri[maxInd2].c1ID);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].c2ID);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].c3ID);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].ah);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].h3);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].avgD1);
+        res+="; ";
+        res+=to_string(hTri[maxInd2].avgD2);
+        res+=")";
+    }
+    
+
+    return res;
+}
 
 int myStoi(string data)
 {
